@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <meta name="theme-color" content="#1e1e1e">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="format-detection" content="telephone=no">
+  <title>Python Editor Pro</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dropbox@10.34.0/dist/Dropbox-sdk.min.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://apis.google.com/js/api.js" async defer></script>
+  <script type="module" crossorigin src="/Editor_PY_Monaco/assets/index-DD8eULXO.js"></script>
+  <link rel="modulepreload" crossorigin href="/Editor_PY_Monaco/assets/monaco-CSL2rJxL.js">
+  <link rel="stylesheet" crossorigin href="/Editor_PY_Monaco/assets/monaco-CrhUvKx3.css">
+  <link rel="stylesheet" crossorigin href="/Editor_PY_Monaco/assets/index-cU-rea6f.css">
+</head>
+<body data-layout="auto">
+
+<!-- Botón hamburguesa para móvil -->
+<button id="menu-toggle" class="menu-toggle" aria-label="Menú">☰</button>
+
+<header id="header">
+  <h1>🐍 Python Editor Pro</h1>
+  <div class="controls" id="controls">
+    <span id="status" class="status loading"><span class="spinner"></span>Cargando...</span>
+
+    <select id="theme-select" title="Tema del editor">
+      <option value="vs-dark">VS Dark</option>
+      <option value="vs">VS Light</option>
+      <option value="hc-black">High Contrast</option>
+      <option value="monokai">Monokai</option>
+      <option value="dracula">Dracula</option>
+      <option value="github-dark">GitHub Dark</option>
+      <option value="solarized-dark">Solarized Dark</option>
+      <option value="nord">Nord</option>
+      <option value="one-dark">One Dark</option>
+      <option value="material-dark">Material Dark</option>
+    </select>
+
+    <select id="pkg-select" title="Cargar paquete">
+      <option value="">+ Paquete...</option>
+      <option value="numpy">numpy</option>
+      <option value="pandas">pandas</option>
+      <option value="matplotlib">matplotlib</option>
+      <option value="scipy">scipy</option>
+      <option value="scikit-learn">scikit-learn</option>
+    </select>
+
+    <select id="example-select" title="Ejemplos">
+      <option value="">Ejemplos...</option>
+      <option value="hello">Hola mundo</option>
+      <option value="input">input() interactivo</option>
+      <option value="numpy">NumPy demo</option>
+      <option value="pandas">Pandas demo</option>
+      <option value="plot">Gráfico matplotlib</option>
+      <option value="async">asyncio demo</option>
+      <option value="multifile">Proyecto multi-archivo</option>
+    </select>
+
+    <button id="import-btn" title="Importar .py">📥 .py</button>
+    <button id="export-btn" title="Exportar .py">📤 .py</button>
+    <button id="import-zip-btn" title="Importar ZIP">📦 ZIP</button>
+    <button id="export-zip-btn" title="Exportar ZIP">📦 ZIP</button>
+    <button id="cloud-export-trigger" title="Exportar a la nube">☁ Nube</button>
+    <button id="folder-open-btn" title="Abrir carpeta">📂 Carpeta</button>
+    <button id="folder-save-btn" title="Guardar en carpeta">💾 Carpeta</button>
+
+    <button id="run-btn" disabled>▶ Ejecutar</button>
+    <button id="stop-btn" class="danger" disabled>■ Stop</button>
+    <button id="clear-btn" class="secondary">Limpiar</button>
+    <button id="reset-btn" class="danger">Reset</button>
+  </div>
+</header>
+
+<div class="tabs-bar" id="tabs-bar">
+  <button class="tab-add" id="tab-add" title="Nuevo archivo">+</button>
+</div>
+
+<main id="main">
+  <div id="editor-container"></div>
+  <div id="splitter" class="splitter"></div>
+  <div id="output-container">
+    <div class="output-header">
+      <span>Salida</span>
+      <span id="exec-time"></span>
+    </div>
+    <div id="output"><span class="info">Inicializando Web Worker + Pyodide...</span></div>
+  </div>
+</main>
+
+<!-- Modal input() -->
+<div class="modal-overlay" id="input-modal">
+  <div class="modal">
+    <h3>⌨ Entrada requerida</h3>
+    <div class="prompt-text" id="modal-prompt"></div>
+    <input type="text" id="modal-input" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text" />
+    <div class="hint">Enter para enviar · Esc para cancelar</div>
+    <button id="modal-submit">Enviar</button>
+  </div>
+</div>
+
+<!-- Overlay drag & drop -->
+<div id="drop-overlay">
+  <div class="drop-message">
+    <span class="icon">📥</span>
+    <div class="title">Suelta tus archivos</div>
+    <div class="hint">.py · carpetas · .zip (se descomprimen automáticamente)</div>
+  </div>
+</div>
+
+<!-- Panel de conflictos -->
+<div id="conflict-modal">
+  <div class="conflict-dialog">
+    <div class="conflict-header">
+      <h3>⚠ Conflictos <span class="count" id="conflict-count">0</span></h3>
+      <button class="secondary" id="conflict-cancel">Cancelar</button>
+    </div>
+    <div class="conflict-body">
+      <div class="conflict-list" id="conflict-list"></div>
+      <div class="conflict-detail">
+        <div class="detail-header">
+          <span class="filename" id="conflict-filename">—</span>
+          <div class="detail-actions">
+            <button id="act-replace">🔄</button>
+            <button id="act-rename">📝</button>
+            <button id="act-skip">⏭</button>
+          </div>
+        </div>
+        <div class="diff-view">
+          <div class="diff-pane left">
+            <div class="pane-label">Actual</div>
+            <pre id="diff-old"></pre>
+          </div>
+          <div class="diff-pane right">
+            <div class="pane-label">Nuevo</div>
+            <pre id="diff-new"></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="conflict-footer">
+      <div class="left-actions">
+        <button class="secondary" id="conflict-all-replace">🔄 Todos</button>
+        <button class="secondary" id="conflict-all-skip">⏭ Saltar</button>
+      </div>
+      <div class="right-actions">
+        <button id="conflict-apply">✓ Aplicar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal cloud -->
+<div class="modal-overlay" id="cloud-export-modal">
+  <div class="modal" style="min-width:min(500px, 92vw);">
+    <h3>☁ Exportar a la nube</h3>
+    <div id="cloud-config-warning" style="display:none;padding:12px;background:#5a4a1e;border-radius:4px;margin-bottom:12px;font-size:12px;color:#dcdcaa;">
+      ⚠ Configura tus Client IDs en <code>src/config.js</code>.
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <button id="export-gdrive" style="padding:14px;background:#1a73e8;justify-content:flex-start;display:flex;align-items:center;gap:12px;">
+        <span style="font-size:20px;">📁</span>
+        <div style="text-align:left;">
+          <div style="font-weight:600;">Google Drive</div>
+          <div style="font-size:11px;opacity:.8;">Descarga el ZIP (súbelo manualmente)</div>
+        </div>
+      </button>
+      <button id="export-dropbox" style="padding:14px;background:#0061ff;justify-content:flex-start;display:flex;align-items:center;gap:12px;">
+        <span style="font-size:20px;">📦</span>
+        <div style="text-align:left;">
+          <div style="font-weight:600;">Dropbox</div>
+          <div style="font-size:11px;opacity:.8;">Descarga el ZIP (súbelo manualmente)</div>
+        </div>
+      </button>
+    </div>
+    <div id="cloud-status" style="margin-top:12px;font-size:12px;color:#858585;text-align:center;"></div>
+    <button class="secondary" id="cloud-close" style="margin-top:12px;width:100%;">Cerrar</button>
+  </div>
+</div>
+
+<div id="autosave">💾 Guardado</div>
+<div id="toast"></div>
+
+</body>
+</html>

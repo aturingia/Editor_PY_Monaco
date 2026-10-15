@@ -1,11 +1,12 @@
 import { defineConfig } from 'vite';
 
-// ⚠️ IMPORTANTE: reemplaza 'Editor_PY_Monaco' con el nombre EXACTO de tu repositorio en GitHub
+// ⚠️ CAMBIA ESTO por el nombre EXACTO de tu repositorio en GitHub
+// (case-sensitive, tal cual aparece en la URL: github.com/TU-USUARIO/XXXXX)
 const REPO_NAME = 'Editor_PY_Monaco';
 
 export default defineConfig({
-  // 🔑 base dinámico: raíz en desarrollo, subcarpeta en GitHub Pages
-  base: process.env.GITHUB_PAGES === 'true' ? `/${REPO_NAME}/` : '/',
+  // GitHub Actions define GITHUB_ACTIONS=true automáticamente
+  base: process.env.GITHUB_ACTIONS ? `/${REPO_NAME}/` : '/',
 
   server: {
     port: 5173,
